@@ -1,0 +1,50 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  # ниже конфигурация серверной машины
+  config.vm.define :server do |server|
+    server.vm.box = "hashicorp/bionic64"
+    server.vm.network :private_network, ip: "10.0.0.10"
+    server.vm.hostname = "server"
+    server.vm.provision "shell", inline: <<-SHELL
+      sudo apt update -y
+      # устанавливаем rsync
+      sudo apt install -y rsync
+      # устанавливаем ssh
+      sudo apt install ssh
+      # удаяем старый файл с конфигурацией rsync
+      sudo rm /etc/rsyncd.conf
+      # копируем готовый файл конфигурации rsync (rsyncd.conf) из общей папки
+      sudo cp /vagrant/rsyncd.conf /etc/rsyncd.conf
+      # запускаем сервис rsyncd и добавляем его в автозагрузку
+      sudo systemctl start rsync
+      sudo systemctl enable rsync
+      # сервер rsync готов
+
+      # создаём папки и файлы для задания
+      sudo mkdir /tmp/server_testdir
+      sudo mkdir /tmp/server_testdir/testdir1 /tmp/server_testdir/testdir2
+      sudo echo "small file" >> /tmp/server_testdir/testdir1/smallfile.txt
+      sudo fallocate -l 10M /tmp/server_testdir/testdir2/largefile.txt
+    SHELL
+  end
+
+  # ниже конфигурация клиентской машины
+  config.vm.define :client do |client|
+    client.vm.box = "hashicorp/bionic64"
+    client.vm.network :private_network, ip: "10.0.0.11"
+    client.vm.hostname = "client"
+    client.vm.provision "shell", inline: <<-SHELL
+      sudo apt update -y
+      # устанавливаю rsync
+      sudo apt install rsync -y
+      # устанавливаю ssh
+      sudo apt install ssh -y
+      # что бы автоматически вводить пароль при подключении устанавливаю утилиту sshpass
+      apt install sshpass -y
+      # теперь можно выполнить синхронизацию файлов с сервера
+      sudo rsync -avz --rsh="sshpass -p vagrant ssh -o StrictHostKeyChecking=no -l vagrant" vagrant@10.0.0.10:/tmp/server_testdir /tmp -v
+    SHELL
+  end
+end
