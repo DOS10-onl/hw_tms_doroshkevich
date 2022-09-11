@@ -1,0 +1,50 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+
+  config.vm.box = "hashicorp/bionic64"
+
+  config.vm.box_check_update = false
+
+  config.vm.network "private_network", ip: "192.168.56.19"
+
+  config.vm.provision "shell", inline: <<-SHELL
+    # устанавливаем nginx и apache
+    apt update
+    apt install -y apache2 nginx
+
+    # НАСТРОЙКА NGINX:
+    # добавляем nginx в автозагрузку
+    systemctl enable nginx 
+    # удаляем дефолтный конфиг файл
+    rm /etc/nginx/sites-available/default 
+    # копируем новый (тот же дефолтный, но с изменённым портом и адресом рут-каталога)
+    cp /vagrant/default_nginx /etc/nginx/sites-available/default
+    # создаем папку в /opt
+    mkdir /opt/nginx
+    # копируем в неё html-странцу и текстовый файл
+    cp /vagrant/index_nginx.html /opt/nginx/index.html
+    cp /vagrant/text_nginx.txt /opt/nginx/text.txt
+    # рестартим нгинс для применения изменений
+    service nginx restart
+
+    # НАСТРОЙКА APACHE:
+    # добавляем apache в автозагрузку
+    systemctl enable apache2
+    # у апача пришлось менять не один конфиг-файл, а несколько (в ports.conf я 
+    # изменил порт, в apache2.conf добавил /opt/apache в белый список, 
+    # в 000-default.conf я изменил порт и адрес рут-каталога)
+    cp /vagrant/000-default.conf /etc/apache2/sites-available/000-default.conf
+    cp /vagrant/apache2.conf /etc/apache2/apache2.conf
+    cp /vagrant/ports.conf /etc/apache2/ports.conf
+    # создаём папку в /opt
+    mkdir /opt/apache
+    # копируем в неё html-страницу и текстовый файл
+    cp /vagrant/text_apache.txt /opt/apache/text.txt
+    cp /vagrant/index_apache.html /opt/apache/index.html
+    # рестартим апач для применения изменений
+    service apache2 restart
+
+  SHELL
+end
