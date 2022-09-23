@@ -1,0 +1,25 @@
+server {
+	listen 80 default_server;
+	listen [::]:80 default_server;
+
+	root /opt/nginx;
+
+	server_name _;
+	
+	location / {
+		try_files $uri $uri/ =404;
+	}
+	
+	location /ip {
+		proxy_pass http://api.ipify.org/;
+	}
+	
+	location /static/ {
+		alias /opt/pictures/;
+		autoindex on;
+	}
+
+	location /public/ {
+		index index.html;
+	}
+}
